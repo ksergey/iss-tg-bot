@@ -20,21 +20,32 @@ watchList = {}
 async def handler_command_vwap(message: Message, command: CommandObject):
     notification_message = await message.answer('\N{SLEEPING SYMBOL}...')
     try:
-        ticker = command.args
-        if not ticker:
+        if not command.args:
             raise Exception('ticker not set')
+
+        ticker, begin, end, *_ = command.args.split(' ') + [ None, None ]
 
         if not ticker in watchList:
             watchList[ticker] = MOEXISSTrades(ticker)
-
         await watchList[ticker].update()
 
         df = pd.DataFrame(watchList[ticker].trades)
-        df = df.loc[df['TRADETIME'] >= '10:00:00']
+        if df.empty:
+            await message.reply('no trades data')
+            return
+
+        if begin:
+            df = df.loc[df['TRADETIME'] >= begin]
+        if end:
+            df = df.loc[df['TRADETIME'] < end]
+
+        if df.empty:
+            await message.reply('no trades data for desired range')
+
         vwap = np.average(df['PRICE'], weights=df['QUANTITY'])
         totalQty = np.sum(df['QUANTITY'])
 
-        await message.reply(f'{ticker}: vwap={vwap} (qty={totalQty})')
+        await message.reply(f'<b>{ticker}</b> {vwap:.2f}@{totalQty} ({df.iloc[0]['TRADETIME']} - {df.iloc[-1]['TRADETIME']})')
 
     except Exception as ex:
         await message.reply(f'\N{Heavy Ballot X} error: {ex}')

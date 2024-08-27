@@ -6,7 +6,6 @@ from aiogram.filters import Command
 
 commands = [
     BotCommand(command='vwap', description='calculate vwap for a security'),
-    BotCommand(command='vwap_reset', description='reset vwap cache'),
     BotCommand(command='help', description='show help')
 ]
 
@@ -19,8 +18,16 @@ async def handler_command_help(message: Message):
         f'/{command.command} - {command.description}\n' for command in commands
     )
     help_message += '\n'
+    help_message += 'usage examples:\n'
+    help_message += '<i>/vwap LKOH</i> - vwap for current day\n'
+    help_message += '<i>/vwap LKOH 12:00 16:00</i> - calc vwap for current day from 12:00 to 16:00\n'
+    help_message += '<i>/vwap LKOH 13:00</i> - calc vwap for current day from 13:00\n'
 
     await message.answer(help_message)
+
+@router.message(Command('start'))
+async def handler_command_start(message: Message):
+    await handler_command_help(message)
 
 def setup_router() -> Router:
     from . import iss
