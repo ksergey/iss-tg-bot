@@ -44,8 +44,9 @@ async def handler_command_vwap(message: Message, command: CommandObject):
 
         vwap = np.average(df['PRICE'], weights=df['QUANTITY'])
         totalQty = np.sum(df['QUANTITY'])
-
-        await message.reply(f'<b>{ticker}</b> {vwap:.2f}@{totalQty} ({df.iloc[0]['TRADETIME']} - {df.iloc[-1]['TRADETIME']})')
+        firstTradeTime = df.iloc[0]['TRADETIME']
+        lastTradeTime = df.iloc[-1]['TRADETIME']
+        await message.reply(f'<b>{ticker}</b> {vwap:.2f}@{totalQty} ({firstTradeTime} - {lastTradeTime})')
 
     except Exception as ex:
         await message.reply(f'\N{Heavy Ballot X} error: {ex}')
