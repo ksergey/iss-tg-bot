@@ -4,7 +4,7 @@ import aiohttp
 
 logger = logging.getLogger(__name__)
 
-class MOEXISSTrades:
+class Trades:
     def __init__(self, symbol, board='TQBR'):
         self._symbol = symbol
         self._board = board
@@ -25,3 +25,18 @@ class MOEXISSTrades:
                         break
                     self._lastTradeNo = data[-1]['TRADENO']
                     self.trades += data
+
+
+class MoexISS:
+    def __init__(self):
+        self._tradesPerSymbol = {}
+
+    async def getTrades(self, symbol, board='TQBR'):
+        key = symbol + board
+        if not key in self._tradesPerSymbol:
+            self._tradesPerSymbol[key] = Trades(symbol, board)
+        await self._tradesPerSymbol[key].update()
+        return self._tradesPerSymbol[key].trades
+
+    def reset(self):
+        self._tradesPerSymbol.clear()

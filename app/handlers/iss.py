@@ -6,7 +6,7 @@ from aiogram import Router
 from aiogram.types import Message, BufferedInputFile
 from aiogram.filters import Command, CommandObject
 
-from app.moex_iss import MOEXISSTrades
+from app.moex_iss import MoexISS
 
 import numpy as np
 import pandas as pd
@@ -14,22 +14,18 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 router = Router()
 
-watchList = {}
-
 @router.message(Command('vwap'))
-async def handler_command_vwap(message: Message, command: CommandObject):
+async def handler_command_vwap(message: Message, command: CommandObject, iss: MoexISS):
     notification_message = await message.answer('\N{SLEEPING SYMBOL}...')
     try:
         if not command.args:
-            raise Exception('ticker not set')
+            raise Exception('symbol not set')
 
-        ticker, begin, end, *_ = command.args.split(' ') + [ None, None ]
+        symbol, begin, end, *_ = command.args.split(' ') + [ None, None ]
 
-        if not ticker in watchList:
-            watchList[ticker] = MOEXISSTrades(ticker)
-        await watchList[ticker].update()
+        trades = await iss.getTrades(symbol)
 
-        df = pd.DataFrame(watchList[ticker].trades)
+        df = pd.DataFrame(trades)
         if df.empty:
             await message.reply('no trades data')
             return
@@ -46,7 +42,7 @@ async def handler_command_vwap(message: Message, command: CommandObject):
         totalQty = np.sum(df['QUANTITY'])
         firstTradeTime = df.iloc[0]['TRADETIME']
         lastTradeTime = df.iloc[-1]['TRADETIME']
-        await message.reply(f'<b>{ticker}</b> {vwap:.2f}@{totalQty} ({firstTradeTime} - {lastTradeTime})')
+        await message.reply(f'<b>{symbol}</b> {vwap:.2f}@{totalQty} ({firstTradeTime} - {lastTradeTime})')
 
     except Exception as ex:
         await message.reply(f'\N{Heavy Ballot X} error: {ex}')
@@ -55,10 +51,10 @@ async def handler_command_vwap(message: Message, command: CommandObject):
         await notification_message.delete()
 
 @router.message(Command('vwap_reset'))
-async def handler_command_vwap_reset(message: Message):
+async def handler_command_vwap_reset(message: Message, iss: MoexISS):
     notification_message = await message.answer('\N{SLEEPING SYMBOL}...')
     try:
-        watchList.clear()
+        iss.reset()
         await message.reply('done')
     except Exception as ex:
         await message.reply(f'\N{Heavy Ballot X} error: {ex}')
