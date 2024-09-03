@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import aiocron
 
 from aiogram import Dispatcher, Bot, F
 from aiogram.types import ReplyKeyboardRemove, BufferedInputFile, BotCommandScopeChat
@@ -27,6 +28,13 @@ async def on_startup(dispatcher: Dispatcher, bot: Bot):
 async def on_shutdown(dispatcher: Dispatcher, bot: Bot):
     await bot.delete_my_commands()
 
+async def on_reset(bot: Bot, iss: MoexISS, admin_id: int) -> None:
+    try:
+        iss.reset()
+        await bot.send_message(chat_id=admin_id, text='vwap reset')
+    except Exception as ex:
+        logger.exception(f'exception during on_reset')
+
 async def main():
     logger.info(f'config:\n{config}')
 
@@ -42,6 +50,11 @@ async def main():
     dp.shutdown.register(on_shutdown)
 
     bot = Bot(token=config.telegram.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
+    # run reset task at 02:00 every day
+    @aiocron.crontab('0 2 * * *')
+    async def schedule_jobs():
+        await on_reset(bot=bot, iss=iss, admin_id=config.telegram.admin_id)
 
     await dp.start_polling(bot)
 
