@@ -16,20 +16,6 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 router = Router()
 
-class VWAPUpdateCallback(CallbackData, prefix='vwap-upd'):
-    chat_id: int
-    message_id: int
-    args: str
-
-def make_vwap_update_keyboard(chat_id: int, message_id: int, args: str) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text='Update',
-        callback_data=VWAPUpdateCallback(chat_id=chat_id, message_id=message_id, args=args)
-    )
-    builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True)
-
 async def calc_vwap(iss: MoexISS, args: str):
     symbol, begin, end, *_ = args.split(' ') + [ None, None ]
     symbol = symbol.upper()
@@ -40,7 +26,6 @@ async def calc_vwap(iss: MoexISS, args: str):
     df = pd.DataFrame(trades)
     if df.empty:
         return None
-
     if begin:
         df = df.loc[df['TRADETIME'] >= begin]
     if end:
@@ -49,48 +34,11 @@ async def calc_vwap(iss: MoexISS, args: str):
         return None
 
     vwap = np.average(df['PRICE'], weights=df['QUANTITY'])
-    totalQty = np.sum(df['QUANTITY'])
-    firstTradeTime = df.iloc[0]['TRADETIME']
-    lastTradeTime = df.iloc[-1]['TRADETIME']
+    total_qty = np.sum(df['QUANTITY'])
+    first_trade_time = df.iloc[0]['TRADETIME']
+    last_trade_time = df.iloc[-1]['TRADETIME']
 
-    return (symbol, vwap, totalQty, firstTradeTime, lastTradeTime)
-
-@router.callback_query(VWAPUpdateCallback.filter())
-async def callback_vwap_update(callback: CallbackQuery, callback_data: VWAPUpdateCallback, iss: MoexISS, bot: Bot):
-    notification_message = await bot.send_message(
-        text='\N{SLEEPING SYMBOL}...',
-        chat_id=callback_data.chat_id,
-        reply_to_message_id=callback_data.message_id
-    )
-
-    try:
-        result = await calc_vwap(iss, callback_data.args)
-        if not result:
-            await bot.send_message(
-                text='no data',
-                reply_to_message_id=callback_data.message_id,
-                chat_id=callback_data.chat_id,
-                reply_markup=make_vwap_update_keyboard(callback_data.chat_id, callback_data.message_id, callback_data.args)
-            )
-            return
-
-        (symbol, vwap, totalQty, firstTradeTime, lastTradeTime) = result
-
-        await bot.send_message(
-            text=f'<b>{symbol}</b> {vwap:.2f}@{totalQty} ({firstTradeTime} - {lastTradeTime})',
-            reply_to_message_id=callback_data.message_id,
-            chat_id=callback_data.chat_id,
-            reply_markup=make_vwap_update_keyboard(callback_data.chat_id, callback_data.message_id, callback_data.args)
-        )
-
-    except Exception as ex:
-        await bot.send_message(
-            text=f'\N{Heavy Ballot X} error: {ex}',
-            reply_to_message_id=callback_data.message_id
-        )
-        logger.exception(f'exception during process message {message}')
-    finally:
-        await notification_message.delete()
+    return (symbol, vwap, total_qty, first_trade_time, last_trade_time)
 
 @router.message(Command('vwap'))
 async def handler_command_vwap(message: Message, command: CommandObject, iss: MoexISS):
@@ -101,17 +49,12 @@ async def handler_command_vwap(message: Message, command: CommandObject, iss: Mo
 
         result = await calc_vwap(iss, command.args)
         if not result:
-            await message.reply(
-                'no data',
-                reply_markup=make_vwap_update_keyboard(message.chat.id, message.message_id, command.args)
-            )
-            return
+            return await message.reply('no data')
 
-        (symbol, vwap, totalQty, firstTradeTime, lastTradeTime) = result
+        (symbol, vwap, total_qty, first_trade_time, last_trade_time) = result
 
         await message.reply(
-            f'<b>{symbol}</b> {vwap:.2f}@{totalQty} ({firstTradeTime} - {lastTradeTime})',
-            reply_markup=make_vwap_update_keyboard(message.chat.id, message.message_id, command.args)
+            f'<b>{symbol}</b> {vwap:.2f}@{total_qty} ({first_trade_time} - {last_trade_time})'
         )
 
     except Exception as ex:
