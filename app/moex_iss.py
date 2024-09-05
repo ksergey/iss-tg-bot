@@ -26,7 +26,6 @@ class Trades:
                     self._last_trade_no = data[-1]['TRADENO']
                     self.trades += data
 
-
 class MoexISS:
     def __init__(self):
         self._trades_per_symbol = {}

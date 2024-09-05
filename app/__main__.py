@@ -31,7 +31,7 @@ async def on_shutdown(dispatcher: Dispatcher, bot: Bot):
 async def on_reset(bot: Bot, iss: MoexISS, admin_id: int) -> None:
     try:
         iss.reset()
-        await bot.send_message(chat_id=admin_id, text='vwap reset')
+        await bot.send_message(chat_id=admin_id, text='vwap reset', disable_notification=True)
     except Exception as ex:
         logger.exception(f'exception during on_reset')
 

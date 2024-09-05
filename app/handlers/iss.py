@@ -25,13 +25,13 @@ async def calc_vwap(iss: MoexISS, args: str):
     logger.info(f'{len(trades)}')
     df = pd.DataFrame(trades)
     if df.empty:
-        return None
+        raise Exception('no data')
     if begin:
         df = df.loc[df['TRADETIME'] >= begin]
     if end:
         df = df.loc[df['TRADETIME'] < end]
     if df.empty:
-        return None
+        raise Exception('no data')
 
     vwap = np.average(df['PRICE'], weights=df['QUANTITY'])
     total_qty = np.sum(df['QUANTITY'])
@@ -40,25 +40,54 @@ async def calc_vwap(iss: MoexISS, args: str):
 
     return (symbol, vwap, total_qty, first_trade_time, last_trade_time)
 
+class VWAPUpdate(CallbackData, prefix='vwap', sep=';'):
+    args: str
+
+def make_reply_keyboard(args: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text=f'\N{CLOCKWISE RIGHT AND LEFT SEMICIRCLE ARROWS} Update',
+        callback_data=VWAPUpdate(args=args)
+    )
+    return builder.as_markup(resize_keyboard=True)
+
+def make_vwap_message(symbol, vwap, total_qty, first_trade_time, last_trade_time) -> str:
+    return f'<b>{symbol}</b> {vwap:.2f}@{total_qty} ({first_trade_time} - {last_trade_time})'
+
+@router.callback_query(VWAPUpdate.filter())
+async def callback_update(query: CallbackQuery, callback_data: VWAPUpdate, iss: MoexISS):
+    edit_message = query.message
+    if not edit_message:
+        return
+    message = edit_message.reply_to_message
+    if not message:
+        return
+
+    notification_message = await message.answer('\N{SLEEPING SYMBOL}...')
+    try:
+        (symbol, vwap, total_qty, first_trade_time, last_trade_time) = await calc_vwap(iss, callback_data.args)
+        text = make_vwap_message(symbol, vwap, total_qty, first_trade_time, last_trade_time)
+        if edit_message.html_text != text:
+            await edit_message.edit_text(
+                text,
+                reply_markup=make_reply_keyboard(callback_data.args)
+            )
+        await query.answer('done')
+    except Exception as ex:
+        await query.answer(f'\N{Heavy Ballot X} something goes wrong')
+        logger.exception(f'exception during process message {message}')
+    finally:
+        await notification_message.delete()
+
 @router.message(Command('vwap'))
 async def handler_command_vwap(message: Message, command: CommandObject, iss: MoexISS):
     notification_message = await message.answer('\N{SLEEPING SYMBOL}...')
     try:
-        if not command.args:
-            raise Exception('symbol not set')
-
-        result = await calc_vwap(iss, command.args)
-        if not result:
-            return await message.reply('no data')
-
-        (symbol, vwap, total_qty, first_trade_time, last_trade_time) = result
-
-        await message.reply(
-            f'<b>{symbol}</b> {vwap:.2f}@{total_qty} ({first_trade_time} - {last_trade_time})'
-        )
-
+        (symbol, vwap, total_qty, first_trade_time, last_trade_time) = await calc_vwap(iss, command.args)
+        text = make_vwap_message(symbol, vwap, total_qty, first_trade_time, last_trade_time)
+        await message.reply(text, reply_markup=make_reply_keyboard(command.args))
     except Exception as ex:
-        await message.reply(f'\N{Heavy Ballot X} error: {ex}')
+        await message.reply(f'\N{Heavy Ballot X} something goes wrong')
         logger.exception(f'exception during process message {message}')
     finally:
         await notification_message.delete()
