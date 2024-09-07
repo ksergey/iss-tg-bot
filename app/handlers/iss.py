@@ -11,7 +11,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardMarkup
 from app.moex_iss import MoexISS
 
 import numpy as np
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -20,10 +19,7 @@ async def calc_vwap(iss: MoexISS, args: str):
     symbol, begin, end, *_ = args.split(' ') + [ None, None ]
     symbol = symbol.upper()
 
-    trades = await iss.getTrades(symbol)
-
-    logger.info(f'{len(trades)}')
-    df = pd.DataFrame(trades)
+    df = await iss.getTrades(symbol)
     if df.empty:
         raise Exception('no data')
     if begin:
@@ -46,7 +42,7 @@ class VWAPUpdate(CallbackData, prefix='vwap', sep=';'):
 def make_reply_keyboard(args: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(
-        text=f'\N{CLOCKWISE RIGHT AND LEFT SEMICIRCLE ARROWS} Update',
+        text=f'\N{Clockwise Open Circle Arrow} Update',
         callback_data=VWAPUpdate(args=args)
     )
     return builder.as_markup(resize_keyboard=True)
@@ -63,7 +59,7 @@ async def callback_update(query: CallbackQuery, callback_data: VWAPUpdate, iss: 
     if not message:
         return
 
-    notification_message = await message.answer('\N{SLEEPING SYMBOL}...')
+    notification_message = await message.answer('\N{Sleeping Symbol}...')
     try:
         (symbol, vwap, total_qty, first_trade_time, last_trade_time) = await calc_vwap(iss, callback_data.args)
         text = make_vwap_message(symbol, vwap, total_qty, first_trade_time, last_trade_time)
@@ -81,7 +77,7 @@ async def callback_update(query: CallbackQuery, callback_data: VWAPUpdate, iss: 
 
 @router.message(Command('vwap'))
 async def handler_command_vwap(message: Message, command: CommandObject, iss: MoexISS):
-    notification_message = await message.answer('\N{SLEEPING SYMBOL}...')
+    notification_message = await message.answer('\N{Sleeping Symbol}...')
     try:
         (symbol, vwap, total_qty, first_trade_time, last_trade_time) = await calc_vwap(iss, command.args)
         text = make_vwap_message(symbol, vwap, total_qty, first_trade_time, last_trade_time)
@@ -94,7 +90,7 @@ async def handler_command_vwap(message: Message, command: CommandObject, iss: Mo
 
 @router.message(Command('vwap_reset'))
 async def handler_command_vwap_reset(message: Message, iss: MoexISS):
-    notification_message = await message.answer('\N{SLEEPING SYMBOL}...')
+    notification_message = await message.answer('\N{Sleeping Symbol}...')
     try:
         iss.reset()
         await message.reply('done')
