@@ -19,7 +19,7 @@ async def calc_vwap(iss: MoexISS, args: str):
     symbol, begin, end, *_ = args.split(' ') + [ None, None ]
     symbol = symbol.upper()
 
-    df = await iss.getTrades(symbol)
+    df = await iss.get_trades(symbol)
     if df.empty:
         raise Exception('no data')
     if begin:
