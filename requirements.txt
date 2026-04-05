@@ -1,6 +1,7 @@
-aiogram==3.12.0
-aiohttp==3.10.5
+aiogram==3.26.0
+ujson==5.12.0
+aiohttp==3.13.3
+aiohttp_socks==0.11.0
 numpy==2.1.0
 pandas==2.2.2
-ujson==5.10.0
 aiocron==1.8

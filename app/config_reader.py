@@ -10,6 +10,7 @@ from app.args_reader import args
 class TelegramConfig:
     token: str = field(repr=False)
     admin_id: int = field(repr=True)
+    proxy: str = field(repr=False)
 
 @dataclass
 class Config:
@@ -22,7 +23,8 @@ def load_config() -> Config:
     config=Config(
         telegram=TelegramConfig(
             token=parser.get('telegram', 'token'),
-            admin_id=int(parser.get('telegram', 'admin_id'))
+            admin_id=int(parser.get('telegram', 'admin_id')),
+            proxy=parser.get('telegram', 'proxy', fallback=None)
         )
     )
 

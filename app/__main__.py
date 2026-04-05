@@ -49,7 +49,12 @@ async def main():
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
 
-    bot = Bot(token=config.telegram.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    # proxy for telegram, fuck РКН
+    if config.telegram.proxy:
+        from aiogram.client.session.aiohttp import AiohttpSession
+        session = AiohttpSession(proxy=config.telegram.proxy)
+
+    bot = Bot(token=config.telegram.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML), session=session)
 
     # run reset task at 02:00 every day
     @aiocron.crontab('0 2 * * *')
